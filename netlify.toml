@@ -1,5 +1,6 @@
 [build]
   publish = "."
+  # geen build command nodig voor plain HTML
 
 [functions]
   directory = "netlify/functions"
