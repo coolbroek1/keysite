@@ -1,0 +1,42 @@
+// Netlify Function: DEV issue key (no PIN in UI)
+// Calls your Apps Script admin_issue_key using ADMIN_SECRET from Netlify env (server-side only)
+const APPS_SCRIPT_EXEC = "https://script.google.com/macros/s/AKfycby88BMm6jEbeEvEMV7Q4Pxv4k6riaizcYkuCPGIDLYJ45MF-zBS6UjOnkbwQB2YV2C9FQ/exec";
+
+exports.handler = async (event) => {
+  const cors = {
+    "access-control-allow-origin": "*",
+    "access-control-allow-methods": "POST, OPTIONS",
+    "access-control-allow-headers": "content-type",
+  };
+
+  if (event.httpMethod === "OPTIONS") {
+    return { statusCode: 204, headers: cors };
+  }
+  if (event.httpMethod !== "POST") {
+    return { statusCode: 405, headers: { ...cors, "content-type": "application/json" }, body: JSON.stringify({ ok:false, error:"method_not_allowed" }) };
+  }
+
+  try {
+    const params = new URLSearchParams(event.body || "");
+    const hwid = (params.get("hwid") || "").trim();
+    if (!hwid) {
+      return { statusCode: 400, headers: { ...cors, "content-type": "application/json" }, body: JSON.stringify({ ok:false, error:"bad_hwid" }) };
+    }
+
+    const secret = process.env.ADMIN_SECRET || "";
+    if (!secret) {
+      return { statusCode: 500, headers: { ...cors, "content-type": "application/json" }, body: JSON.stringify({ ok:false, error:"server_no_admin_secret" }) };
+    }
+
+    const upstream = await fetch(APPS_SCRIPT_EXEC, {
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded", "user-agent": "NetlifyDevIssue/1.0" },
+      body: new URLSearchParams({ action:"admin_issue_key", hwid, secret })
+    });
+
+    const text = await upstream.text();
+    return { statusCode: upstream.status, headers: { ...cors, "content-type": "application/json" }, body: text };
+  } catch (e) {
+    return { statusCode: 502, headers: { ...cors, "content-type": "application/json" }, body: JSON.stringify({ ok:false, error:"upstream_error" }) };
+  }
+};
