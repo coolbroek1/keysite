@@ -1,49 +1,23 @@
 exports.handler = async (event) => {
-  if (event.httpMethod === 'OPTIONS') return resp(200, {});
-  if (event.httpMethod !== 'POST') return resp(405, { ok:false, error:'method_not_allowed' });
-
+  if (event.httpMethod === 'OPTIONS') return cors(200, {});
+  if (event.httpMethod !== 'POST') return cors(405, { ok:false, error:'method_not_allowed' });
   try {
     const APPS_EXEC = process.env.APPS_EXEC;
-    if (!APPS_EXEC) return resp(500, { ok:false, error:'missing_APPS_EXEC' });
-
-    // Content-Type sniff
-    const h = event.headers || {};
-    const ct = (h['content-type'] || h['Content-Type'] || '').toLowerCase();
-
-    let payload = {};
-    if (ct.includes('application/x-www-form-urlencoded')) {
-      // parse form into object
-      payload = parseForm(event.body || '');
-    } else {
-      // assume JSON
-      payload = JSON.parse(event.body || '{}');
-    }
+    if (!APPS_EXEC) return cors(500, { ok:false, error:'missing_APPS_EXEC' });
 
     const r = await fetch(APPS_EXEC, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
+      body: event.body || '{}'
     });
-
     const text = await r.text();
-    return resp(r.ok ? 200 : 500, text, true);
+    return cors(r.ok ? 200 : 500, text, true);
   } catch (e) {
-    return resp(500, { ok:false, error:String(e) });
+    return cors(500, { ok:false, error:String(e) });
   }
 };
 
-function parseForm(body) {
-  const out = {};
-  for (const part of body.split('&')) {
-    if (!part) continue;
-    const [k, v=''] = part.split('=');
-    out[decodeURIComponent(k.replace(/\+/g, ' '))] =
-      decodeURIComponent(v.replace(/\+/g, ' '));
-  }
-  return out;
-}
-
-function resp(status, body, passthrough=false) {
+function cors(status, body, passthrough=false) {
   return {
     statusCode: status,
     headers: {
