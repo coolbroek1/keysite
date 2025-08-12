@@ -1,5 +1,13 @@
-<!doctype html><html><meta charset="utf-8">
-<title>Key Site</title>
-<h1>Site online ✅</h1>
-<p>Als je dit ziet, is 404 weg en staat je root goed.</p>
-</html>
+<script>
+btnDev && (btnDev.onclick = async () => {
+  const hwid = document.getElementById('devHwid').value.trim() || localStorage.getItem('hwid') || prompt('HWID?');
+  if(!hwid) return;
+  try{
+    btnDev.disabled=true;
+    const r = await fetch(PROXY, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ action:'admin_issue_key', hwid, adminSecret:'aze' }) });
+    const d = await r.json();
+    if (d.ok && d.key){ const k={key:d.key, expiresAt:d.expiresAt}; setActive(k); renderKeyCard(k); refresh(); }
+    else alert('Dev error: '+(d.error||'unknown'));
+  } finally { btnDev.disabled=false; }
+});
+</script>
