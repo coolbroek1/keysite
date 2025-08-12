@@ -1,45 +1,32 @@
 exports.handler = async (event) => {
-  if (event.httpMethod === 'OPTIONS') return resp(200, {});
-  if (event.httpMethod !== 'POST') return resp(405, { ok:false, error:'method_not_allowed' });
-
+  if (event.httpMethod === 'OPTIONS') return cors(200, {});
+  if (event.httpMethod !== 'POST') return cors(405, { ok:false, error:'method_not_allowed' });
   try {
     const APPS_EXEC = process.env.APPS_EXEC;
-    if (!APPS_EXEC) return resp(500, { ok:false, error:'missing_APPS_EXEC' });
+    const ADMIN_SECRET = process.env.ADMIN_SECRET; // moet overeenkomen met Apps Script ADMIN_SECRET
+    if (!APPS_EXEC) return cors(500, { ok:false, error:'missing_APPS_EXEC' });
+    if (!ADMIN_SECRET) return cors(500, { ok:false, error:'missing_ADMIN_SECRET' });
 
-    const h = event.headers || {};
-    const ct = (h['content-type'] || h['Content-Type'] || '').toLowerCase();
-
-    let payload = {};
-    if (ct.includes('application/x-www-form-urlencoded')) {
-      payload = parseForm(event.body || '');
-    } else {
-      payload = JSON.parse(event.body || '{}');
-    }
+    const req = JSON.parse(event.body || '{}');
+    const payload = {
+      action: 'admin_issue_key',
+      hwid: req.hwid,
+      adminSecret: ADMIN_SECRET
+    };
 
     const r = await fetch(APPS_EXEC, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
+      body: JSON.stringify(payload)
     });
-
     const text = await r.text();
-    return resp(r.ok ? 200 : 500, text, true);
+    return cors(r.ok ? 200 : 500, text, true);
   } catch (e) {
-    return resp(500, { ok:false, error:String(e) });
+    return cors(500, { ok:false, error:String(e) });
   }
 };
 
-function parseForm(body){
-  const out = {};
-  for (const part of body.split('&')){
-    if (!part) continue;
-    const [k,v=''] = part.split('=');
-    out[decodeURIComponent(k.replace(/\+/g,' '))] = decodeURIComponent(v.replace(/\+/g,' '));
-  }
-  return out;
-}
-
-function resp(status, body, passthrough=false){
+function cors(status, body, passthrough=false) {
   return {
     statusCode: status,
     headers: {
